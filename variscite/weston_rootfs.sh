@@ -11,20 +11,18 @@ function make_debian_weston_rootfs()
 	umount ${ROOTFS_BASE}/{sys,proc,dev/pts,dev} 2>/dev/null || true
 
 	# clear rootfs dir
-#	rm -rf ${ROOTFS_BASE}/*
-
+	rm -rf ${ROOTFS_BASE}/*
+	
 	pr_info "rootfs: debootstrap"
 
-	if [ ! -f "${ROOTFS_BASE}/.debootstrap" ]; then
-
-		sudo mkdir -p ${ROOTFS_BASE}
-		sudo chown -R root:root ${ROOTFS_BASE}
-		debootstrap --verbose --no-check-gpg --foreign --arch arm64 ${DEB_RELEASE} \
-			${ROOTFS_BASE}/ ${PARAM_DEB_LOCAL_MIRROR}
-
-		touch ${ROOTFS_BASE}/.debootstrap
-	fi
-
+	sudo mkdir -p ${ROOTFS_BASE}
+	sudo chown -R root:root ${ROOTFS_BASE}
+	debootstrap --verbose --no-check-gpg --foreign --arch arm64 ${DEB_RELEASE} \
+		${ROOTFS_BASE}/ ${PARAM_DEB_LOCAL_MIRROR}
+		
+	#patch for qemu-aarch64
+	update-binfmts qemu-aarch64
+	
 	# prepare qemu
 	pr_info "rootfs: debootstrap in rootfs (second-stage)"
 	cp ${G_VARISCITE_PATH}/qemu_64bit/qemu-aarch64-static ${ROOTFS_BASE}/usr/bin/qemu-aarch64-static
