@@ -1,0 +1,190 @@
+2 Create build environment
+2.1 Installing required packages
+On Ubuntu building machine:
+
+$ sudo apt install -y binfmt-support qemu qemu-user-static debootstrap kpartx lvm2 dosfstools gpart binutils bison git lib32ncurses5-dev libssl-dev python-m2crypto gawk wget git-core diffstat unzip texinfo gcc-multilib build-essential chrpath socat libsdl1.2-dev autoconf libtool libglib2.0-dev libarchive-dev python-git xterm sed cvs subversion kmod coreutils texi2html bc docbook-utils python-pysqlite2 help2man make gcc g++ desktop-file-utils libgl1-mesa-dev libglu1-mesa-dev mercurial automake groff curl lzop asciidoc u-boot-tools mtd-utils device-tree-compiler flex cmake
+
+Note: If you are using Ubuntu 20.04 the QEMU package requires an update.
+To update the QEMU - qemu-user-static package on Ubuntu 20.04 LTS use below commnads.
+$ wget https://launchpad.net/~ci-train-ppa-service/+archive/ubuntu/4535/+files/qemu-user-static_4.2-3ubuntu6.17~focalppa1_amd64.deb
+$ sudo dpkg -i qemu-user-static_4.2-3ubuntu6.17~focalppa1_amd64.deb
+
+2.2 Deploy source
+Download archive containing the build script and support files for building Debian Bullseye for this board:
+
+$ cd ~
+$ git clone https://github.com/varigit/debian-var.git -b debian_bullseye_var01 debian_imx8mm-var-dart
+$ git clone https://github.com/varigit/debian-var.git -b debian_bullseye_var01 debian_imx8mm-var-dart-60ch
+Create environment (Internet connection should be available):
+
+$ cd ~/debian_imx8mm-var-dart
+$ MACHINE=imx8mm-var-dart ./var_make_debian.sh -c deploy
+This environment prepared to build.
+
+3 Make Debian
+3.1 Build all
+Internet connection should be available
+
+$ cd ~/debian_imx8mm-var-dart
+$ sudo MACHINE=imx8mm-var-dart ./var_make_debian.sh -c all |& tee build.log
+
+3.2 Build by parts
+3.2.1 Build bootloader
+$ cd ~/debian_imx8mm-var-dart
+$ sudo MACHINE=imx8mm-var-dart ./var_make_debian.sh -c bootloader
+
+3.2.2 Build kernel, dtb files and kernel modules
+$ cd ~/debian_imx8mm-var-dart
+$ sudo MACHINE=imx8mm-var-dart ./var_make_debian.sh -c kernel
+$ sudo MACHINE=imx8mm-var-dart ./var_make_debian.sh -c modules
+$ sudo MACHINE=imx8mm-var-dart ./var_make_debian.sh -c kernelheaders
+
+3.2.3 Build rootfs
+Internet connection should be available
+
+$ cd ~/debian_imx8mm-var-dart
+$ sudo MACHINE=imx8mm-var-dart ./var_make_debian.sh -c rootfs
+
+3.2.4 Pack rootfs
+To create the root file system archive (rootfs.tar.gz), run the following commands:
+
+$ cd ~/debian_imx8mm-var-dart
+$ sudo MACHINE=imx8mm-var-dart ./var_make_debian.sh -c rtar ./rootfs ./output
+
+
+4 Create boot SD card
+Follow the above steps for make rootfs, kernel, bootloader;
+Insert the SD card to card reader connected to a host system;
+Run the following commands (Caution! All data on the card will be destroyed):
+
+$ cd ~/debian_imx8mm-var-dart
+$ sudo MACHINE=imx8mm-var-dart ./var_make_debian.sh -c sdcard -d /dev/sdb
+$ sudo MACHINE=imx8mm-var-dart ./var_make_debian.sh -c sdcard_uboot -d /dev/sdb
+
+where '/dev/sdX' path to the block SD device in your system.
+
+4.1 Create a boot SD card image using a loop device
+It is also possible to use the "MACHINE=imx8mm-var-dart ./var_make_debian.sh" script to create a boot SD card image, while using a loop device instead of attaching a real SD card.
+
+Create an empty file using the following command:
+
+$ dd if=/dev/zero of=imx8mm-var-dart-debian-sd.img bs=1M count=3720
+
+The above command creates a 3700MiB file representing the SD card.
+
+Attach the first available loop device to this file:
+
+$ sudo losetup -Pf imx8mm-var-dart-debian-sd.img
+
+To find the actual loop device being used, run: $ losetup -a | grep imx8mm-var-dart-debian-sd.img
+
+Write the content to the loop device to generate the SD card image:
+
+$ sudo MACHINE=imx8mm-var-dart ./var_make_debian.sh <options> /dev/loopX
+(Replace /dev/loopX with your actual loop device, e.g. /dev/loop0)
+
+Detach the loop device from the file:
+
+$ sudo losetup -d /dev/loopX
+To compress the SD card image file use the following command:
+
+$ gzip -9 imx8mm-var-dart-debian-sd.img
+To write the SD card image to a real SD card device use the following command:
+
+$ zcat dart-mx8mm-debian-bullseye-v2.0.img.gz | sudo dd of=/dev/sdb bs=1M status=progress && sync
+(Replace /dev/sdX with your actual SD device, e.g. /dev/sdb)
+
+5 Boot the board with a bootable SD card
+5.1 Setting the Boot Mode
+Make sure the BOOT SELECT DIP switch on the carrier board is set correctly before you power on the board.
+
+SW7
+ 0 : Boot from SD card
+ 1 : Boot from eMMC
+
+5.2 Device tree selection in U-Boot
+As shown in the Build Results table above, we have different kernel device trees, corresponding to our different H/W configurations (sometimes they are renamed without the "Image.gz-" prefix).
+
+In U-Boot, set the device tree file manually:
+
+$ setenv fdt_file YOUR_DTB_FILE
+$ saveenv
+
+6 Build Results
+
+The resulted images are located in ~/debian_imx8mm-var-dart/output/.
+
+Image name
+How to use
+rootfs.tar.gz	Root filesystem tarball used for installation on SD card and eMMC
+Image.gz	Linux kernel image
+imx-boot-sd.bin	U-Boot built for SD card and eMMC
+fw_printenv	U-Boot env tools for SD card and eMMC
+
+Folder Name
+Usage
+kernel-headers	kernel headers folder for package creation
+Device Tree name
+Details
+mx8mm-var-dart-dt8mcustomboard.dtb	Device tree blob for DART-MX8M-MINI on DT8MCustomBoard V2.x
+imx8mm-var-dart-dt8mcustomboard-m4.dtb	Device tree blob for DART-MX8M-MINI with Cortex-M4 on DT8MCustomBoard V2.x
+imx8mm-var-dart-dt8mcustomboard-legacy.dtb	Device tree blob for DART-MX8M-MINI on DT8MCustomBoard V1.x
+imx8mm-var-dart-dt8mcustomboard-legacy-m4.dtb	Device tree blob for DART-MX8M-MINI with Cortex-M4 on DT8MCustomBoard V1.x
+imx8mm-var-som-symphony.dtb	Device tree blob for VAR-SOM-MX8M-MINI on Symphony-Board V1.4A and above
+imx8mm-var-som-symphony-m4.dtb	Device tree blob for VAR-SOM-MX8M-MINI with Cortex-M4 on Symphony-Board V1.4A and above
+imx8mm-var-som-symphony-legacy.dtb	Device tree blob for VAR-SOM-MX8M-MINI on Symphony-Board V1.4 and below
+imx8mm-var-som-symphony-legacy-m4.dtb	Device tree blob for VAR-SOM-MX8M-MINI with Cortex-M4 on Symphony-Board V1.4 and below
+
+7 Linux console access
+User name	User password	User descriptor
+root	root	system administrator
+user	user	local user
+x_user		used for X session access
+Please note: Vivante libraies for this release do not support X11, only weston backend is provided
+
+8 Flash images to eMMC
+To install Debian to the on-SOM eMMC, run the following command as root:
+
+# install_debian.sh
+The above script is located in /usr/sbin in the rootfs of the SD card used to boot Debian.
+
+9 How-to: Test and use an interface
+Please see this section in the Yocto developer guide page. It is the same for Debian.
+
+10 How-to: Modify the kernel configuration
+To modify the kernel configuration (add/remove features and drivers) please follow the steps below:
+
+1. $ cd ~/debian_imx8mm-var-dart/src/kernel
+2. $ sudo make ARCH=arm64 mrproper
+3. $ sudo make ARCH=arm64 imx8_var_defconfig
+4. $ sudo make ARCH=arm64 menuconfig
+5. Navigate the menu and select the desired kernel functionality
+6. Exit the menu and answer "Yes" when asked "Do you wish to save your new configuration?"
+7. $ sudo make ARCH=arm64 savedefconfig
+8. $ sudo cp arch/arm64/configs/imx8_var_defconfig arch/arm64/configs/imx8_var_defconfig.orig
+9. $ sudo cp defconfig arch/arm64/configs/imx8_var_defconfig
+
+11 How-to : Modify the DTS file
+$ sudo make ARCH=arm64 mrproper
+$ sudo make ARCH=arm64 imx8_var_defconfig
+$ sudo make ARCH=arm64 dtbs
+
+$ scp src/kernel/arch/arm64/boot/dts/freescale/imx8mm-var-dart-dt8mcustomboard-legacy.dtb root@10.42.0.215:/boot/
+
+/* change to imx8 Board */
+root@imx8mm-var-dart:~# fw_setenv fdt_file imx8mm-var-dart-dt8mcustomboard-legacy.dtb
+root@imx8mm-var-dart:~# reboot
+
+/*Expand file system*/
+
+/*U-boot buid*/
+make ARCH=arm64 imx8mm_var_dart_defconfig
+make ARCH=arm64 menuconfig
+
+/*rsync option*/
+rsync -avrlup [source] [destination] 
+
+/*u-boot option
+* for NFS boot must change below option
+*/
+setenv ip_dyn no
