@@ -1,0 +1,20 @@
+apt update
+apt install -y binfmt-support qemu qemu-user-static debootstrap kpartx lvm2 dosfstools gpart binutils bison git lib32ncurses5-dev libssl-dev python-m2crypto gawk wget git-core diffstat unzip texinfo gcc-multilib build-essential chrpath socat libsdl1.2-dev autoconf libtool libglib2.0-dev libarchive-dev python-git xterm sed cvs subversion kmod coreutils texi2html bc docbook-utils python-pysqlite2 help2man make gcc g++ desktop-file-utils libgl1-mesa-dev libglu1-mesa-dev mercurial automake groff curl lzop asciidoc u-boot-tools mtd-utils device-tree-compiler flex cmake
+
+#필요한 package 설치 후 docker restart
+
+#When build at docker
+#every time when the docker container is stopped, it looks like docker will clean up the content inside #/proc/sys/fs/binfmt_misc. You need to run
+
+update-binfmts --import 
+update-binfmts --display qemu-aarch64
+
+update-binfmts --enable qemu-aarch64
+
+#to bring the qemu-arm registration back.
+
+If there is warning message says:
+update-binfmts: warning: Couldn't load the binfmt_misc module.
+That is because in latest ubuntu, binfmt_misc is not mounted properly. Using following command to mount binfmt_misc first:
+
+#mount binfmt_misc -t binfmt_misc /proc/sys/fs/binfmt_misc/
