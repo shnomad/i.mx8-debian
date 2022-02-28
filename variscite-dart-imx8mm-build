@@ -61,6 +61,9 @@ $ cd ~/debian_imx8mm-var-dart
 $ sudo MACHINE=imx8mm-var-dart ./var_make_debian.sh -c sdcard -d /dev/sdb
 $ sudo MACHINE=imx8mm-var-dart ./var_make_debian.sh -c sdcard_uboot -d /dev/sdb
 
+/* bootloader flashing only*/
+$ dd if=output/imx-boot-sd.bin of=/dev/sdb bs=1K seek=33; sync
+
 where '/dev/sdX' path to the block SD device in your system.
 
 4.1 Create a boot SD card image using a loop device
